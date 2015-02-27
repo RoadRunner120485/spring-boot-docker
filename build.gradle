@@ -1,0 +1,57 @@
+apply plugin: 'java'
+apply plugin: 'application'
+apply plugin: 'com.bmuschko.docker-java-application'
+apply plugin: 'com.bmuschko.docker-remote-api'
+
+sourceCompatibility = 1.8
+version = '1.0'
+mainClassName = 'de.sturmm.app.App'
+
+buildscript {
+    repositories {
+        jcenter()
+    }
+    dependencies {
+        classpath 'com.bmuschko:gradle-docker-plugin:2.0.2'
+    }
+}
+
+project.ext {
+    versions = [
+        spring             : '4.1.5.RELEASE',
+        // !!! also update gradle boot plugin version in gulp web
+        spring_boot        : '1.2.2.RELEASE',
+        // embedded tomcat to start without WAR
+        tomcat             : '8.0.20',
+        /*** TESTING  ***/
+        // 4.12 breaks with powermock >= 1.5.6, see https://code.google.com/p/powermock/issues/detail?id=531
+        junit              : '4.11'
+    ]
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    compile("org.springframework.boot:spring-boot:$versions.spring_boot")
+    compile("org.springframework.boot:spring-boot-autoconfigure:$versions.spring_boot")
+    compile("org.springframework.boot:spring-boot-starter-web:$versions.spring_boot")
+    /** adds additional endpoints (/metrics, /beans) when in classpath */
+    runtime("org.springframework.boot:spring-boot-actuator:$versions.spring_boot")
+    runtime("org.apache.tomcat.embed:tomcat-embed-core:$versions.tomcat")
+
+    testCompile group: 'junit', name: 'junit', version: '4.11'
+}
+
+docker {
+    url = 'https://192.168.59.103:2376'
+    certPath = new File(System.properties['user.home'], '.boot2docker/certs/boot2docker-vm')
+
+    javaApplication {
+        baseImage = 'dockerfile/java:oracle-java8'
+        maintainer = 'Martin Sturm "martin.sturm85@gmail.com"'
+        tag = "roadrunner120485/$name:$version"
+        port = 8080
+    }
+}
