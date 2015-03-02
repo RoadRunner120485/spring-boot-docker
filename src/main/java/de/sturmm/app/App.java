@@ -1,6 +1,6 @@
 package de.sturmm.app;
 
-import de.sturmm.app.config.ApplictionConfig;
+import de.sturmm.app.config.ApplicationConfig;
 import org.springframework.boot.SpringApplication;
 
 /**
@@ -9,7 +9,7 @@ import org.springframework.boot.SpringApplication;
 public class App {
 
     public static void main(String[] args) {
-        SpringApplication.run(ApplictionConfig.class, args);
+        SpringApplication.run(ApplicationConfig.class, args);
     }
 
 }

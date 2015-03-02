@@ -13,6 +13,6 @@ import org.springframework.web.servlet.config.annotation.EnableWebMvc;
 @EnableWebMvc
 @EnableAutoConfiguration
 @ComponentScan(basePackageClasses = HelloWorldController.class)
-public class ApplictionConfig {
+public class ApplicationConfig {
 
 }
