@@ -1,0 +1,22 @@
+id: app
+kind: ReplicationController
+apiVersion: v1beta1
+desiredState:
+  replicas: 2
+  replicaSelector:
+    name: app
+  # This is identical to the pod config above
+  podTemplate:
+    desiredState:
+      manifest:
+        version: v1beta1
+        id: app
+        containers:
+          - name: app
+            image: roadrunner120485/test
+            cpu: 1000
+            ports:
+              - name: web
+                containerPort: 8080
+    labels:
+      name: app

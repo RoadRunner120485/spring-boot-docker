@@ -1,0 +1,9 @@
+id: app
+kind: Service
+apiVersion: v1beta1
+port: 8000
+containerPort: 8080
+selector:
+  name: app
+publicIps:
+  - 172.17.8.102
