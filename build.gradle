@@ -45,19 +45,17 @@ dependencies {
 }
 
 docker {
-    url = 'http://127.0.0.1:2375'
-    //certPath = new File(System.properties['user.home'], '.boot2docker/certs/boot2docker-vm')
+    url = 'https://192.168.59.104:2376'
+    certPath = new File(System.properties['user.home'], '.boot2docker/certs/boot2docker-vm')
 
     javaApplication {
         baseImage = 'dockerfile/java:oracle-java8'
         maintainer = 'Martin Sturm "roadrunner120485@user.noreply.github.com"'
-        tag = "roadrunner120485/test"
+        tag = "registry.appdev.io/roadrunner120485/spring_boot_docker:b$buildNumber"
         port = 8080
     }
     registry {
-        url = 'https://registry.hub.docker.com'
-        username = 'roadrunner120485'
-        password = 'INSERT_PWD_HERE'
+        url = 'http://registry.appdev.io'
         email = 'roadrunner120485@user.noreply.github.com'
     }
 }
