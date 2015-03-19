@@ -49,17 +49,28 @@ docker {
     certPath = new File(System.properties['user.home'], '.boot2docker/certs/boot2docker-vm')
 
     javaApplication {
-        def versionTag = -1;
-        if (project.hasProperty('buildNumber')) {
-            versionTag = project.getProperties().get('buildNumber')
-        }
         baseImage = 'dockerfile/java:oracle-java8'
         maintainer = 'Martin Sturm "roadrunner120485@user.noreply.github.com"'
-        tag = "registry.appdev.io/roadrunner120485/spring_boot_docker:b$versionTag"
+        tag = "registry.appdev.io/roadrunner120485/spring-boot-docker:$version"
         port = 8080
     }
     registry {
-        url = 'http://registry.appdev.io'
+        url = 'http://registry.appdev.io/v1'
         email = 'roadrunner120485@user.noreply.github.com'
     }
+}
+
+task uploadImage(type: com.bmuschko.gradle.docker.tasks.image.DockerPushImage) {
+    registry = docker.registry
+    imageName = "registry.appdev.io/roadrunner120485/spring-boot-docker"
+    tag = getVersion()
+}
+uploadImage.dependsOn dockerBuildImage
+
+String getVersion() {
+    def versionTag = "latest";
+    if (project.hasProperty('buildNumber')) {
+        versionTag = "b" + project.getProperties().get('buildNumber')
+    }
+    return versionTag
 }
