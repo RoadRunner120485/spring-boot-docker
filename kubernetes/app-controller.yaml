@@ -1,4 +1,4 @@
-id: app
+id: app-controller
 kind: ReplicationController
 apiVersion: v1beta1
 desiredState:
@@ -13,7 +13,7 @@ desiredState:
         id: app
         containers:
           - name: app
-            image: roadrunner120485/test
+            image: registry.appdev.io/roadrunner120485/spring-boot-docker:b12
             cpu: 1000
             ports:
               - name: web

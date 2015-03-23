@@ -1,0 +1,176 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+require 'fileutils'
+require 'net/http'
+
+if !Vagrant.has_plugin?("vagrant-hostmanager") then
+  exec "vagrant plugin install vagrant-hostmanager"
+end
+# v0.12.0-1041-gef75888
+# https://storage.googleapis.com/kubernetes-release/ci/v0.12.0-1041-gef75888/bin/linux/amd64/kube-apiserver
+$master_cloud_config = File.join(File.dirname(__FILE__), "provision/cloudconfig/master.yaml")
+$minion_cloud_config = File.join(File.dirname(__FILE__), "provision/cloudconfig/minion.yaml")
+
+$num_instances = 3
+$vm_gui = false
+$vm_memory = 512
+$vm_cpus = 1
+
+Vagrant.configure(2) do |config|
+  # always use Vagrants insecure key
+  config.ssh.insert_key = false
+
+  # coreos does not have a '/etc/hosts' file by default
+  # hostmanager must be provisioned manually
+  config.hostmanager.enabled = false
+  config.hostmanager.manage_host = true
+  config.hostmanager.ignore_private_ip = false
+  config.hostmanager.include_offline = true
+
+#  config.vm.provider "docker" do |d|
+#    d.vagrant_vagrantfile = "./docker-host-vm/Vagrantfile"
+#    d.ports = ["8080:8080"]
+#    d.image = "roadrunner120485/test"
+#  end
+#   config.vm.define "app" do |app|
+#     app.vm.box = "hashicorp/precise64"
+#     app.vm.provision "shell",
+#            inline: "ps aux | grep 'sshd:' | awk '{print $2}' | xargs kill"
+#
+#     app.vm.network :forwarded_port, host: 9080, guest: 8080
+# #  config.vm.hostname = "test.myvagrant.io"
+#
+#     app.vm.provision "docker" do |d|
+#       d.run "roadrunner120485/test",
+#         args: "-p 8080:8080"
+#     end
+#   end
+  
+  #config.vm.define "docker" do |docker|
+  #  docker.vm.box = "mitchellh/boot2docker"
+  #  docker.vm.provision "shell", inline:
+  #    "ps aux | grep 'sshd:' | awk '{print $2}' | xargs kill"
+  #  docker.vm.network :forwarded_port, host: 2375, guest: 2375
+  #  config.vm.network "private_network", ip: "10.39.0.100"
+  #end
+  
+  config.vm.define "jenkins" do |jenkins|
+    if Vagrant.has_plugin?("vagrant-cachier")
+      jenkins.cache.scope = :box
+    end
+    jenkins.vm.provider "virtualbox" do |v|
+      v.memory = 1024
+    end
+    jenkins.vm.box = "hashicorp/precise64"
+    jenkins.vm.network "private_network", ip: "10.29.13.100"
+    jenkins.vm.hostname = "jenkins.appdev.io"
+    
+    jenkins.vm.provision "shell", path: "provision/scripts/initdocker.sh"
+    jenkins.vm.provision "shell", inline: "docker load -i /vagrant/provision/docker/jenkins.tar"
+    
+    jenkins.vm.provision "docker" do |d|
+      d.run "jenkins",
+        args: "-p 80:8080 -p 50000:50000 -v /vagrant/jenkins_workspace:/var/jenkins_home"
+    end
+    jenkins.vm.provision :hostmanager
+  end
+  
+  # http://stackoverflow.com/questions/26424338/docker-daemon-config-file-on-boot2docker?answertab=oldest#tab-top
+  config.vm.define "registry" do |registry|
+    if Vagrant.has_plugin?("vagrant-cachier")
+      registry.cache.scope = :box
+    end
+    registry.vm.box = "hashicorp/precise64"
+    registry.vm.network "private_network", ip: "10.29.13.101"
+    registry.vm.hostname = "registry.appdev.io"
+
+    registry.vm.provision "shell", path: "provision/scripts/initdocker.sh"
+    registry.vm.provision "shell", inline: "docker load -i /vagrant/provision/docker/registry.tar"
+    
+    registry.vm.provision "docker" do |d|
+      d.run "registry",
+        args: "-p 80:5000 -v /vagrant/registry_storage:/mnt/registry_storage -e SETTINGS_FLAVOR=local -e STORAGE_PATH=/mnt/registry_storage -e GUNICORN_OPTS=[--preload] -e MIRROR_SOURCE=https://registry-1.docker.io -e MIRROR_SOURCE_INDEX=https://index.docker.io -e MIRROR_TAGS_CACHE_TTL=1800"
+    end
+    registry.vm.provision :hostmanager
+  end
+
+  $etcd_discovery = Net::HTTP.get(URI('https://discovery.etcd.io/new'))
+
+  config.cache.enable :generic, {
+    "wget" => { cache_dir: "/var/cache/wget" },
+  }
+
+  (1..$num_instances).each  do |i|
+    vm_name = "coreos-%s" % (i == 1 ? "master" : "minion%02d" % (i-1))
+    config.vm.define vm_name % i do |coreos|
+
+      coreos.vm.provider :virtualbox do |v|
+        # On VirtualBox, we don't have guest additions or a functional vboxsf
+        # in CoreOS, so tell Vagrant that so it can be smarter.
+        v.check_guest_additions = false
+        v.functional_vboxsf     = false
+      end
+
+      # plugin conflict
+      if Vagrant.has_plugin?("vagrant-vbguest") then
+        coreos.vbguest.auto_update = false
+      end
+
+      coreos.vm.box = "coreos-alpha"
+      coreos.vm.box_version = ">= 308.0.1"
+      coreos.vm.box_url = "http://alpha.release.core-os.net/amd64-usr/current/coreos_production_vagrant.json"
+
+      coreos.vm.hostname = "%s.appdev.io" % vm_name
+      coreos.vm.synced_folder ".", "/vagrant", disabled: true
+      # if $enable_serial_logging
+      #   logdir = File.join(File.dirname(__FILE__), "log")
+      #   FileUtils.mkdir_p(logdir)
+      #
+      #   serialFile = File.join(logdir, "%s-serial.txt" % vm_name)
+      #   FileUtils.touch(serialFile)
+      #
+      #   config.vm.provider :virtualbox do |vb, override|
+      #     vb.customize ["modifyvm", :id, "--uart1", "0x3F8", "4"]
+      #     vb.customize ["modifyvm", :id, "--uartmode1", serialFile]
+      #   end
+      # end
+
+      # if $expose_docker_tcp
+      #   coreos.vm.network "forwarded_port", guest: 2375, host: ($expose_docker_tcp + i - 1), auto_correct: true
+      # end
+      #
+      # $forwarded_ports.each do |guest, host|
+      #   coreos.vm.network "forwarded_port", guest: guest, host: host, auto_correct: true
+      # end
+
+      coreos.vm.provider :virtualbox do |vb|
+        vb.gui = $vm_gui
+        vb.memory = $vm_memory
+        vb.cpus = $vm_cpus
+      end
+
+      currentIp = "10.29.13.#{i+101}"
+      coreos.vm.network :private_network, ip: currentIp
+
+      # Uncomment below to enable NFS for sharing the host machine into the coreos-vagrant VM.
+      #config.vm.synced_folder ".", "/home/core/share", id: "core", :nfs => true, :mount_options => ['nolock,vers=3,udp']
+      # $shared_folders.each_with_index do |(host_folder, guest_folder), index|
+      #   config.vm.synced_folder host_folder.to_s, guest_folder.to_s, id: "core-share%02d" % index, nfs: true, mount_options: ['nolock,vers=3,udp']
+      # end
+
+      # if $share_home
+      #   config.vm.synced_folder ENV['HOME'], ENV['HOME'], id: "home", :nfs => true, :mount_options => ['nolock,vers=3,udp']
+      # end
+
+      coreos.vm.provision "shell", inline: "touch /etc/hosts"
+      coreos.vm.provision :hostmanager
+
+      cloud_config = i == 1 ? $master_cloud_config : $minion_cloud_config
+      if File.exist?(cloud_config)
+        coreos.vm.provision :file, :source => "#{cloud_config}", :destination => "/tmp/vagrantfile-user-data"
+        coreos.vm.provision :shell, :inline => "mv /tmp/vagrantfile-user-data /var/lib/coreos-vagrant/", :privileged => true
+      end
+    end
+  end
+end

@@ -13,6 +13,7 @@ build/
 vagrant-setup/.vagrant
 vagrant-setup/jenkins_workspace/**
 vagrant-setup/registry_storage/**
+vagrant-setup/provision/docker/*.tar
 
 # virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
 hs_err_pid*
