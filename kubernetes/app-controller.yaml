@@ -2,7 +2,7 @@ id: app-controller
 kind: ReplicationController
 apiVersion: v1beta1
 desiredState:
-  replicas: 2
+  replicas: 1
   replicaSelector:
     name: app
   # This is identical to the pod config above
@@ -13,7 +13,7 @@ desiredState:
         id: app
         containers:
           - name: app
-            image: registry.appdev.io/roadrunner120485/spring-boot-docker:b12
+            image: registry.appdev.io/roadrunner120485/spring-boot-docker:b8
             cpu: 1000
             ports:
               - name: web

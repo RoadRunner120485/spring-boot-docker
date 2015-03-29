@@ -30,6 +30,9 @@ $ docker save -o registry.tar registry
 ```
 $ cd vagrant-setup
 $ vagrant up
+$ export ETCDCTL_PEERS=http://coreos-master.appdev.io:4001
+$ export FLEETCTL_ENDPOINT=http://coreos-master.appdev.io:4001
+$ export KUBERNETES_MASTER=http://coreos-master.appdev.io:8080
 ```
 
 ## Links

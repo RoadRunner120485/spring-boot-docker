@@ -6,4 +6,4 @@ containerPort: 8080
 selector:
   name: app
 publicIps:
-  - 10.29.13.102
+  - 10.29.13.103
